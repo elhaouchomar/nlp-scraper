@@ -1,9 +1,13 @@
 import os
 import sys
+import warnings
+warnings.filterwarnings('ignore')
+
 import pandas as pd
 import spacy
 import pickle
 import string
+import sqlite3
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
@@ -50,11 +54,15 @@ scandal_keywords = [
 scandal_embeddings = embedder.encode(scandal_keywords, convert_to_tensor=True)
 
 def process_news():
-    input_file = os.path.join(DATA_DIR, 'scraped_news.csv')
-    if not os.path.exists(input_file):
-        sys.exit("Error: scraped_news.csv not found. Run scraper_news.py first.")
+    db_file = os.path.join(DATA_DIR, 'scraped_news.db')
+    
+    if os.path.exists(db_file):
+        conn = sqlite3.connect(db_file)
+        df = pd.read_sql('SELECT * FROM scraped_news', conn)
+        conn.close()
+    else:
+        sys.exit("Error: scraped_news data not found. Run scraper_news.py first.")
         
-    df = pd.read_csv(input_file)
     enriched_data = []
     
     for index, row in df.iterrows():
@@ -63,32 +71,35 @@ def process_news():
         body = str(row['Body'])
         full_text = title + ". " + body
         
-        print(f"\nEnriching {url}:")
+        print(f"\nEnriching {url}:\n")
+        print("Cleaning document ... (optional)\n")
         
-        # 1. Entity Detection
-        print("\n---------- Detect entities ----------")
+        print("---------- Detect entities ----------\n")
         doc = nlp(full_text)
         orgs = list(set([ent.text for ent in doc.ents if ent.label_ == 'ORG']))
-        print(f"Detected {len(orgs)} companies which are {', '.join(orgs) if orgs else 'None'}")
+        if not orgs:
+            orgs_str = "None"
+        elif len(orgs) == 1:
+            orgs_str = orgs[0]
+        else:
+            orgs_str = f"{', '.join(orgs[:-1])} and {orgs[-1]}"
+        print(f"Detected {len(orgs)} companies which are {orgs_str}")
         
-        # 2. Topic Detection
-        print("\n---------- Topic detection ----------")
-        print("Text preprocessing ...")
+        print("\n---------- Topic detection ----------\n")
+        print("Text preprocessing ...\n")
         clean_text = preprocess_text(full_text)
         topic = topic_classifier.predict([clean_text])[0]
         print(f"The topic of the article is: {topic}")
         
-        # 3. Sentiment Analysis
-        print("\n---------- Sentiment analysis ----------")
+        print("\n---------- Sentiment analysis ----------\n")
         print("Text preprocessing ... (optional)")
         sentiment_scores = sia.polarity_scores(full_text)
         compound = sentiment_scores['compound']
         sentiment = "positive" if compound >= 0.05 else ("negative" if compound <= -0.05 else "neutral")
-        print(f"The article {title[:30]}... has a {sentiment} sentiment")
+        print(f"The article {title} has a {sentiment} sentiment")
         
-        # 4. Scandal Detection
-        print("\n---------- Scandal detection ----------")
-        print("Computing embeddings and distance ...")
+        print("\n---------- Scandal detection ----------\n")
+        print("Computing embeddings and distance ...\n")
         max_scandal_distance = 0.0
         
         if orgs:
@@ -111,7 +122,7 @@ def process_news():
         
     enriched_df = pd.DataFrame(enriched_data)
     
-    # Flag Top 10 scandals
+    # Flag Top 10
     top_10_indices = enriched_df.nlargest(10, 'Scandal_distance').index
     enriched_df.loc[top_10_indices, 'Top_10'] = True
     

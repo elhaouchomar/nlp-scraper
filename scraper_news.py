@@ -1,36 +1,69 @@
 import os
 import uuid
+import time
+from datetime import datetime, timedelta
 import feedparser
 import pandas as pd
 from bs4 import BeautifulSoup
+import sqlite3
 
-# Setup paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 os.makedirs(DATA_DIR, exist_ok=True)
 
-def scrape_news(target_count=300):
-    # Using multiple RSS feeds to quickly gather 300+ articles
+def scrape_news(target_count=1000):
     feeds = [
-        "http://feeds.bbci.co.uk/news/world/rss.xml",
-        "http://feeds.bbci.co.uk/news/business/rss.xml",
-        "http://feeds.bbci.co.uk/news/technology/rss.xml",
-        "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml"
-    ]
+            "https://feeds.bbci.co.uk/news/world/rss.xml",
+            "https://feeds.bbci.co.uk/news/business/rss.xml",
+            "https://feeds.bbci.co.uk/news/technology/rss.xml",
+            "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+            "https://feeds.bbci.co.uk/news/health/rss.xml",
+            "https://feeds.bbci.co.uk/news/education/rss.xml",
+            "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml",
+            "https://feeds.bbci.co.uk/news/sport/rss.xml",
+            "https://feeds.bbci.co.uk/news/politics/rss.xml",
+            "https://feeds.bbci.co.uk/news/business/economy/rss.xml",
+            "https://feeds.bbci.co.uk/news/uk/rss.xml",
+            "https://feeds.bbci.co.uk/news/england/rss.xml",
+            "https://feeds.bbci.co.uk/news/northern_ireland/rss.xml",
+            "https://feeds.bbci.co.uk/news/scotland/rss.xml",
+            "https://feeds.bbci.co.uk/news/wales/rss.xml",
+            "https://feeds.bbci.co.uk/news/business/companies/rss.xml",
+            "https://feeds.bbci.co.uk/news/world/africa/rss.xml",
+            "https://feeds.bbci.co.uk/news/world/asia/rss.xml",
+            "https://feeds.bbci.co.uk/news/world/europe/rss.xml",
+            "https://feeds.bbci.co.uk/news/world/latin_america/rss.xml",
+            "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
+            "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml"
+            ]
     
     articles = []
+    seen_urls = set()
+    
+    seven_days_ago = datetime.now() - timedelta(days=7)
     
     for feed_url in feeds:
         if len(articles) >= target_count:
             break
         
         parsed = feedparser.parse(feed_url)
+        print(f"parser{parsed.bozo}")
         for entry in parsed.entries:
             if len(articles) >= target_count:
                 break
             
+            url = entry.get('link', '')
+            if not url or url in seen_urls:
+                continue
+                
             try:
-                url = entry.get('link', '')
+                published_parsed = entry.get('published_parsed')
+                if published_parsed:
+                    dt = datetime.fromtimestamp(time.mktime(published_parsed))
+                    if dt < seven_days_ago:
+                        continue
+                
+                seen_urls.add(url)
                 headline = entry.get('title', '')
                 date = entry.get('published', '')
                 
@@ -44,7 +77,7 @@ def scrape_news(target_count=300):
                 print("        requesting ...")
                 print("        parsing ...")
                 
-                save_path = os.path.join('data', 'scraped_news.csv')
+                save_path = os.path.join('data', 'scraped_news.db')
                 print(f"        saved in {save_path}")
                 
                 articles.append({
@@ -54,13 +87,18 @@ def scrape_news(target_count=300):
                     'Headline': headline,
                     'Body': body
                 })
+
             except Exception as e:
                 continue
                 
     df = pd.DataFrame(articles)
-    output_file = os.path.join(DATA_DIR, 'scraped_news.csv')
-    df.to_csv(output_file, index=False)
-    print(f"\nScraping finished. {len(df)} articles saved to {output_file}")
+    
+    db_file = os.path.join(DATA_DIR, 'scraped_news.db')
+    conn = sqlite3.connect(db_file)
+    df.to_sql('scraped_news', conn, if_exists='replace', index=False)
+    conn.close()
+    
+    print(f"\nScraping finished. {len(df)} articles saved to {db_file}")
 
 if __name__ == "__main__":
-    scrape_news(300)
+    scrape_news(1000)

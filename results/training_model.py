@@ -13,12 +13,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import learning_curve
 
-# Setup paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 RESULTS_DIR = os.path.join(BASE_DIR, 'results')
 
-# Download NLTK data
 nltk.download('stopwords', quiet=True)
 
 # NLP Preprocessing
@@ -39,7 +37,6 @@ def download_datasets():
     train_url = "https://raw.githubusercontent.com/01-edu/public/master/subjects/ai/nlp-scraper/bbc_news_train.csv"
     test_url = "https://raw.githubusercontent.com/01-edu/public/master/subjects/ai/nlp-scraper/bbc_news_tests.csv"
     
-    print("Downloading BBC news datasets...")
     train_df = pd.read_csv(train_url)
     test_df = pd.read_csv(test_url)
     
@@ -67,7 +64,6 @@ def plot_learning_curves(estimator, X, y, filepath):
     plt.legend(loc="best")
     
     plt.savefig(filepath)
-    print(f"Learning curves saved to {filepath}")
 
 if __name__ == "__main__":
     train_df, test_df = download_datasets()
@@ -77,13 +73,14 @@ if __name__ == "__main__":
     text_col_test = [c for c in test_df.columns if 'text' in c.lower()][0]
     label_col_test = [c for c in test_df.columns if 'category' in c.lower() or 'topic' in c.lower()][0]
     
-    print("Preprocessing text...")
+    #Preprocessing text
     X_train = train_df[text_col_train].apply(preprocess_text)
     y_train = train_df[label_col_train]
     X_test = test_df[text_col_test].apply(preprocess_text)
     y_test = test_df[label_col_test]
     
-    print("Training model...")
+    
+    #Training model
     pipeline = Pipeline([
         ('vectorizer', CountVectorizer(max_df=0.95, min_df=2)),
         ('classifier', MultinomialNB(alpha=0.1)) 
