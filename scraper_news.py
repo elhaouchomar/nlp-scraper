@@ -47,7 +47,6 @@ def scrape_news(target_count=1000):
             break
         
         parsed = feedparser.parse(feed_url)
-        print(f"parser{parsed.bozo}")
         for entry in parsed.entries:
             if len(articles) >= target_count:
                 break
@@ -67,7 +66,6 @@ def scrape_news(target_count=1000):
                 headline = entry.get('title', '')
                 date = entry.get('published', '')
                 
-                # Clean HTML tags from summary to get the body
                 raw_summary = entry.get('summary', '')
                 body = BeautifulSoup(raw_summary, "html.parser").get_text(separator=' ')
                 if not body:
@@ -98,7 +96,5 @@ def scrape_news(target_count=1000):
     df.to_sql('scraped_news', conn, if_exists='replace', index=False)
     conn.close()
     
-    print(f"\nScraping finished. {len(df)} articles saved to {db_file}")
-
 if __name__ == "__main__":
     scrape_news(1000)

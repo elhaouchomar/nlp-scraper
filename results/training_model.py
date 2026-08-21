@@ -80,7 +80,6 @@ if __name__ == "__main__":
     y_test = test_df[label_col_test]
     
     
-    #Training model
     pipeline = Pipeline([
         ('vectorizer', CountVectorizer(max_df=0.95, min_df=2)),
         ('classifier', MultinomialNB(alpha=0.1)) 

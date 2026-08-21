@@ -122,14 +122,12 @@ def process_news():
         
     enriched_df = pd.DataFrame(enriched_data)
     
-    # Flag Top 10
     top_10_indices = enriched_df.nlargest(10, 'Scandal_distance').index
     enriched_df.loc[top_10_indices, 'Top_10'] = True
     
     os.makedirs(RESULTS_DIR, exist_ok=True)
     output_file = os.path.join(RESULTS_DIR, 'enhanced_news.csv')
     enriched_df.to_csv(output_file, index=False)
-    print(f"\nFinished processing. Results saved to {output_file}")
 
 if __name__ == "__main__":
     process_news()
